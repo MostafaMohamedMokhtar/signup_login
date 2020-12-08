@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_login/config/config.dart';
 import 'package:firebase_login/start_page.dart';
@@ -13,6 +14,7 @@ class PhoneSignInScreen extends StatefulWidget {
 class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
 
   final _codeController = TextEditingController();
+  final FirebaseFirestore _db = FirebaseFirestore.instance ;
   PhoneNumber _phoneNumber ;
   String phoneNumber, verificationId;
   String otp, authStatus = "";
@@ -98,8 +100,17 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
         .signInWithCredential(PhoneAuthProvider.getCredential(
       verificationId: verificationId,
       smsCode: otp,
-    ));
+    )).then((value) {
+      setState(() {
+        _db.collection("users").doc(value.user.uid).set({
+          "phoneNumer" : value.user.phoneNumber ,
+          "lastSeen" : DateTime.now(),
+          "signin_method" : value.user.providerData
+        });
+      });
+    });
     print('successful Login');
+
     Navigator.pushReplacement(context, MaterialPageRoute(
       builder: (context) => StartPage(),
     )) ;

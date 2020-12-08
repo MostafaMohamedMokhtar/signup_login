@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_login/config/config.dart';
 import 'package:firebase_login/email_pass_signup.dart';
 import 'package:firebase_login/phone_signIn_screen.dart';
@@ -25,6 +27,8 @@ class _SigninScreenState extends State<SigninScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+   FirebaseFirestore _db ;
+
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
@@ -38,6 +42,23 @@ class _SigninScreenState extends State<SigninScreen> {
 
   File _image;
 
+  bool _initialized = false;
+  bool _error = false;
+
+  void initializeFlutterFire() async {
+    try {
+      // Wait for Firebase to initialize and set `_initialized` state to true
+      await Firebase.initializeApp();
+      setState(() {
+        _initialized = true;
+      });
+    } catch(e) {
+      // Set `_error` state to true if Firebase initialization fails
+      setState(() {
+        _error = true;
+      });
+    }
+  }
   final picker = ImagePicker();
   String _imagePth ;
 
@@ -69,8 +90,10 @@ class _SigninScreenState extends State<SigninScreen> {
   @override
   void initState() {
     // TODO: implement initState
-    super.initState();
+    initializeFlutterFire();
     loadImage();
+    super.initState();
+
   }
   void saveImage(String _path) async {
     SharedPreferences preferences  = await SharedPreferences.getInstance() ;
@@ -301,10 +324,18 @@ class _SigninScreenState extends State<SigninScreen> {
   void _signInWithEmail() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text;
+    _db = await FirebaseFirestore.instance ;
     if (email.isNotEmpty && password.isNotEmpty) {
       _auth
           .signInWithEmailAndPassword(email: email, password: password)
           .then((value) {
+        print('///////////////////userid = ${value.user.uid}');
+            CollectionReference users = _db.collection('users') ;
+        users.doc(value.user.uid).set({
+        "email" : email ,
+        "lastSeen" : DateTime.now() ,
+        "signin_method" : value.user.providerData
+        });
         Navigator.push(
             context,
             MaterialPageRoute(
